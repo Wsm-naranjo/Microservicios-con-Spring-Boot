@@ -1,0 +1,158 @@
+package com.micro1.inventario.controllers;
+
+import com.micro1.inventario.services.CatalogoService;
+import com.micro1.inventario.dtos.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/api/v1/catalogo")
+@RequiredArgsConstructor
+public class CatalogoController {
+
+    private final CatalogoService service;
+
+    /**
+     * GET /api/v1/catalogo?page=0&size=10&sort=nombre,asc
+     * Listar todos los catálogos con paginación
+     */
+    @GetMapping
+    public ResponseEntity<Page<CatalogoResponseDTO>> getAll(
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        Page<CatalogoResponseDTO> page = service.getAll(pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * GET /api/v1/catalogo/{id}
+     * Obtener un catálogo por ID
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<CatalogoResponseDTO> getById(@PathVariable Long id) {
+        try {
+            CatalogoResponseDTO catalogo = service.getById(id);
+            return ResponseEntity.ok(catalogo);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * GET /api/v1/catalogo/search/nombre?nombre=producto&page=0&size=10
+     * Buscar catálogos por nombre
+     */
+    @GetMapping("/search/nombre")
+    public ResponseEntity<Page<CatalogoResponseDTO>> getByNombre(
+            @RequestParam String nombre,
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        Page<CatalogoResponseDTO> page = service.getByNombre(nombre, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * GET /api/v1/catalogo/search/estado?estado=ACTIVO&page=0&size=10
+     * Filtrar catálogos por estado
+     */
+    @GetMapping("/search/estado")
+    public ResponseEntity<Page<CatalogoResponseDTO>> getByEstado(
+            @RequestParam String estado,
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        Page<CatalogoResponseDTO> page = service.getByEstado(estado, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * GET /api/v1/catalogo/search/categoria?categoria=Electrónica&page=0&size=10
+     * Filtrar catálogos por categoría
+     */
+    @GetMapping("/search/categoria")
+    public ResponseEntity<Page<CatalogoResponseDTO>> getByCategoria(
+            @RequestParam String categoria,
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        Page<CatalogoResponseDTO> page = service.getByCategoria(categoria, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * POST /api/v1/catalogo
+     * Crear un nuevo catálogo
+     */
+    @PostMapping
+    public ResponseEntity<CatalogoResponseDTO> create(@Valid @RequestBody CreateCatalogoDTO dto) {
+        try {
+            CatalogoResponseDTO created = service.create(dto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (DuplicateEntityException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+    }
+
+    /**
+     * PUT /api/v1/catalogo/{id}
+     * Actualizar completo un catálogo
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<CatalogoResponseDTO> update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateCatalogoDTO dto) {
+        try {
+            CatalogoResponseDTO updated = service.update(id, dto);
+            return ResponseEntity.ok(updated);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (DuplicateEntityException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+    }
+
+    /**
+     * PATCH /api/v1/catalogo/{id}
+     * Actualización parcial de un catálogo
+     */
+    @PatchMapping("/{id}")
+    public ResponseEntity<CatalogoResponseDTO> patch(
+            @PathVariable Long id,
+            @RequestBody PatchCatalogoDTO dto) {
+        try {
+            CatalogoResponseDTO patched = service.patch(id, dto);
+            return ResponseEntity.ok(patched);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (DuplicateEntityException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+    }
+
+    /**
+     * DELETE /api/v1/catalogo/{id}
+     * Eliminar un catálogo
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        try {
+            service.delete(id);
+            return ResponseEntity.noContent().build();
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+}
+
+// Excepciones personalizadas (también definidas en Service)
+class EntityNotFoundException extends RuntimeException {
+    public EntityNotFoundException(String message) {
+        super(message);
+    }
+}
+
+class DuplicateEntityException extends RuntimeException {
+    public DuplicateEntityException(String message) {
+        super(message);
+    }
+}

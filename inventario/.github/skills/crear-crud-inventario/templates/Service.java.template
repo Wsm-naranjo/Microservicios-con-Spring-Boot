@@ -1,0 +1,156 @@
+package com.micro1.inventario.services;
+
+import com.micro1.inventario.entities.Catalogo;
+import com.micro1.inventario.repositories.CatalogoRepository;
+import com.micro1.inventario.dtos.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class CatalogoService {
+
+    private final CatalogoRepository repository;
+
+    // GET: Listar todos con paginación
+    @Transactional(readOnly = true)
+    public Page<CatalogoResponseDTO> getAll(Pageable pageable) {
+        return repository.findAll(pageable)
+                .map(this::convertToResponseDTO);
+    }
+
+    // GET: Obtener por ID
+    @Transactional(readOnly = true)
+    public CatalogoResponseDTO getById(Long id) {
+        Catalogo catalogo = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Catálogo con ID " + id + " no encontrado"));
+        return convertToResponseDTO(catalogo);
+    }
+
+    // GET: Buscar por nombre
+    @Transactional(readOnly = true)
+    public Page<CatalogoResponseDTO> getByNombre(String nombre, Pageable pageable) {
+        return repository.findByNombreContainingIgnoreCase(nombre, pageable)
+                .map(this::convertToResponseDTO);
+    }
+
+    // GET: Filtrar por estado
+    @Transactional(readOnly = true)
+    public Page<CatalogoResponseDTO> getByEstado(String estado, Pageable pageable) {
+        return repository.findByEstado(estado, pageable)
+                .map(this::convertToResponseDTO);
+    }
+
+    // GET: Filtrar por categoría
+    @Transactional(readOnly = true)
+    public Page<CatalogoResponseDTO> getByCategoria(String categoria, Pageable pageable) {
+        return repository.findByCategoria(categoria, pageable)
+                .map(this::convertToResponseDTO);
+    }
+
+    // POST: Crear nuevo catálogo
+    public CatalogoResponseDTO create(CreateCatalogoDTO dto) {
+        // Validar que no exista nombre duplicado
+        if (repository.existsByNombreIgnoreCase(dto.getNombre())) {
+            throw new DuplicateEntityException("Ya existe un catálogo con el nombre: " + dto.getNombre());
+        }
+
+        Catalogo catalogo = Catalogo.builder()
+                .nombre(dto.getNombre())
+                .descripcion(dto.getDescripcion())
+                .estado(dto.getEstado())
+                .categoria(dto.getCategoria())
+                .precio(dto.getPrecio())
+                .cantidadDisponible(dto.getCantidadDisponible())
+                .build();
+
+        Catalogo saved = repository.save(catalogo);
+        return convertToResponseDTO(saved);
+    }
+
+    // PUT: Actualizar completo
+    public CatalogoResponseDTO update(Long id, UpdateCatalogoDTO dto) {
+        Catalogo catalogo = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Catálogo con ID " + id + " no encontrado"));
+
+        // Validar nombre duplicado (si cambió)
+        if (!catalogo.getNombre().equalsIgnoreCase(dto.getNombre()) && 
+            repository.existsByNombreIgnoreCase(dto.getNombre())) {
+            throw new DuplicateEntityException("Ya existe un catálogo con el nombre: " + dto.getNombre());
+        }
+
+        catalogo.setNombre(dto.getNombre());
+        catalogo.setDescripcion(dto.getDescripcion());
+        catalogo.setEstado(dto.getEstado());
+        catalogo.setCategoria(dto.getCategoria());
+        catalogo.setPrecio(dto.getPrecio());
+        catalogo.setCantidadDisponible(dto.getCantidadDisponible());
+
+        Catalogo updated = repository.save(catalogo);
+        return convertToResponseDTO(updated);
+    }
+
+    // PATCH: Actualización parcial
+    public CatalogoResponseDTO patch(Long id, PatchCatalogoDTO dto) {
+        Catalogo catalogo = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Catálogo con ID " + id + " no encontrado"));
+
+        // Actualizar solo los campos que no son null
+        if (dto.getNombre() != null) {
+            if (repository.existsByNombreIgnoreCase(dto.getNombre())) {
+                throw new DuplicateEntityException("Ya existe un catálogo con el nombre: " + dto.getNombre());
+            }
+            catalogo.setNombre(dto.getNombre());
+        }
+
+        if (dto.getDescripcion() != null) catalogo.setDescripcion(dto.getDescripcion());
+        if (dto.getEstado() != null) catalogo.setEstado(dto.getEstado());
+        if (dto.getCategoria() != null) catalogo.setCategoria(dto.getCategoria());
+        if (dto.getPrecio() != null) catalogo.setPrecio(dto.getPrecio());
+        if (dto.getCantidadDisponible() != null) catalogo.setCantidadDisponible(dto.getCantidadDisponible());
+
+        Catalogo updated = repository.save(catalogo);
+        return convertToResponseDTO(updated);
+    }
+
+    // DELETE: Eliminar
+    public void delete(Long id) {
+        if (!repository.existsById(id)) {
+            throw new EntityNotFoundException("Catálogo con ID " + id + " no encontrado");
+        }
+        repository.deleteById(id);
+    }
+
+    // Utilidad: Convertir Entity a DTO
+    private CatalogoResponseDTO convertToResponseDTO(Catalogo catalogo) {
+        return CatalogoResponseDTO.builder()
+                .id(catalogo.getId())
+                .nombre(catalogo.getNombre())
+                .descripcion(catalogo.getDescripcion())
+                .estado(catalogo.getEstado())
+                .categoria(catalogo.getCategoria())
+                .precio(catalogo.getPrecio())
+                .cantidadDisponible(catalogo.getCantidadDisponible())
+                .createdAt(catalogo.getCreatedAt() != null ? catalogo.getCreatedAt().toString() : null)
+                .updatedAt(catalogo.getUpdatedAt() != null ? catalogo.getUpdatedAt().toString() : null)
+                .build();
+    }
+}
+
+// Excepciones personalizadas
+class EntityNotFoundException extends RuntimeException {
+    public EntityNotFoundException(String message) {
+        super(message);
+    }
+}
+
+class DuplicateEntityException extends RuntimeException {
+    public DuplicateEntityException(String message) {
+        super(message);
+    }
+}
